@@ -109,95 +109,96 @@ export default function SimulationHU3() {
     setEditandoSolicitud(null);
   };
 
-  // Función para enviar el mensaje - USANDO LA RUTA PAR5
-const enviarMensaje = async (
-  estado: 'aceptada' | 'rechazada',
-  solicitud: Solicitud,
-  nombreFixer: string,
-  motivoRechazo: string
-) => {
-  setModalLoading(true);
+  // Función para enviar el mensaje - USANDO LA RUTA PAR5 (CORREGIDA)
+  const enviarMensaje = async (
+    estado: 'aceptada' | 'rechazada',
+    solicitud: Solicitud,
+    nombreFixer: string,
+    motivoRechazo: string
+  ) => {
+    setModalLoading(true);
 
-  // 1️⃣ Crear el texto según el estado con el nuevo formato
-  let texto = '';
-  if (estado === 'aceptada') {
-    texto = `Nueva actualización sobre tu solicitud ✔
+    // 1️⃣ Crear el texto según el estado con el nuevo formato
+    let texto = '';
+    if (estado === 'aceptada') {
+      texto = `Nueva actualización sobre tu solicitud ✔
 ¡Tu solicitud ha sido aceptada!
 Número de solicitud: SOL-${solicitud.id}
 Servicio: ${solicitud.servicio}
 Fecha y hora de aceptación: ${new Date().toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })}
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })}
 Motivo: ${motivoRechazo || 'Solicitud aprobada'}
 El Fixer ${nombreFixer} ya está listo para ayudarte.
 Puedes contactarlo desde la solicitud: ${solicitud.urlSolicitud}`;
-  } else {
-    texto = `Nueva actualización sobre tu solicitud ❌
+    } else {
+      texto = `Nueva actualización sobre tu solicitud ❌
 Lamentamos informarte que tu solicitud ha sido rechazada.
 Número de solicitud: SOL-${solicitud.id}
 Servicio: ${solicitud.servicio}
 Fecha y hora de rechazo: ${new Date().toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })}
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      })}
 Motivo: ${motivoRechazo || 'No especificado'}
 Puedes crear una nueva solicitud en: ${solicitud.urlSolicitud}`;
-  }
+    }
 
-  const cuerpo = {
-    number: solicitud.numero.trim(),
-    text: texto,
-    logData: {
-      fixer: nombreFixer,
-      client: solicitud.nombreRequester,
-      servicio: solicitud.servicio,
-      estado,
-      motivo: motivoRechazo,
-    },
+    const cuerpo = {
+      number: solicitud.numero.trim(),
+      text: texto,
+      logData: {
+        fixer: nombreFixer,
+        client: solicitud.nombreRequester,
+        servicio: solicitud.servicio,
+        estado,
+        motivo: motivoRechazo,
+      },
+    };
+
+    try {
+      console.log('🔍 Enviando a PAR5 endpoint...');
+      
+      // USANDO LA NUEVA RUTA PAR5
+      const respuesta = await fetch('https://servineo-backend.onrender.com/api/par5/enviar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuerpo),
+      });
+
+      if (!respuesta.ok) {
+        throw new Error(`Error HTTP: ${respuesta.status}`);
+      }
+
+      const data = await respuesta.json();
+      console.log('✅ Respuesta de PAR5:', data);
+
+      if (data.success) {
+        mostrarAlerta('success', '✅ Mensaje enviado correctamente a través de PAR5');
+        setTimeout(() => closeModal(), 1000);
+      } else {
+        mostrarAlerta('error', data.mensaje || '❌ No se pudo enviar el mensaje');
+      }
+    } catch (error: unknown) {
+      console.error('❌ Error con PAR5:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      mostrarAlerta('error', 
+        `❌ No se pudo conectar con el backend PAR5.\n
+        Error: ${errorMessage}`
+      );
+    } finally {
+      setModalLoading(false);
+    }
   };
-
-  try {
-    console.log('🔍 Enviando a PAR5 endpoint...');
-    
-    // USANDO LA NUEVA RUTA PAR5
-    const respuesta = await fetch('https://servineo-backend.onrender.com/api/par5/enviar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cuerpo),
-    });
-
-    if (!respuesta.ok) {
-      throw new Error(`Error HTTP: ${respuesta.status}`);
-    }
-
-    const data = await respuesta.json();
-    console.log('✅ Respuesta de PAR5:', data);
-
-    if (data.success) {
-      mostrarAlerta('success', '✅ Mensaje enviado correctamente a través de PAR5');
-      setTimeout(() => closeModal(), 1000);
-    } else {
-      mostrarAlerta('error', data.mensaje || '❌ No se pudo enviar el mensaje');
-    }
-  } catch (error: any) {
-    console.error('❌ Error con PAR5:', error);
-    mostrarAlerta('error', 
-      `❌ No se pudo conectar con el backend PAR5.\n
-      Error: ${error.message}`
-    );
-  } finally {
-    setModalLoading(false);
-  }
-};
 
   const openModal = (solicitud: Solicitud, estado: 'aceptada' | 'rechazada') => {
     setSolicitudActual(solicitud);
