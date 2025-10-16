@@ -1,8 +1,7 @@
-﻿// app/page.tsx - VERSION COMPLETA CON BOTÓN ATRÁS IDÉNTICO
+// app/page.tsx - VERSION CORREGIDA
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { FaArrowLeft } from 'react-icons/fa'
 
 // Interfaces y tipos
@@ -51,7 +50,7 @@ const SOLICITUDES_KEY = 'solicitudes_registradas'
 const ULTIMAS_SOLICITUDES_KEY = 'ultimas_solicitudes'
 
 export default function SistemaSolicitudes() {
-  const router = useRouter()
+  // Eliminamos router ya que no se usa
   const [codigoUnico, setCodigoUnico] = useState('-')
   const [estadoSolicitud, setEstadoSolicitud] = useState('-')
   const [fechaRegistro, setFechaRegistro] = useState('-')
@@ -183,7 +182,7 @@ export default function SistemaSolicitudes() {
     const s2Len = s2.length;
 
     // Crear una matriz para almacenar las distancias
-    let matrix: number[][] = [];
+    const matrix: number[][] = [];
 
     // Inicializar la primera columna y la primera fila
     for (let i = 0; i <= s1Len; i++) {
@@ -352,18 +351,19 @@ export default function SistemaSolicitudes() {
       })
 
       const tiempoRespuesta = Date.now() - inicio
-      const respuesta = await res.text()
+      const respuestaText = await res.text()
       
-      setRespuestaServidor(`Código: ${res.status}\nTiempo: ${tiempoRespuesta}ms\n\n${respuesta}`)
+      setRespuestaServidor(`Código: ${res.status}\nTiempo: ${tiempoRespuesta}ms\n\n${respuestaText}`)
 
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${respuesta}`)
+        throw new Error(`Error ${res.status}: ${respuestaText}`)
       }
 
-      return respuesta
-    } catch (err: any) {
-      setRespuestaServidor("Error al enviar: " + err.message)
-      throw err
+      return respuestaText
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      setRespuestaServidor("Error al enviar: " + errorMessage)
+      throw error
     }
   }
 
@@ -376,7 +376,7 @@ export default function SistemaSolicitudes() {
       }
 
       const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
-      const respuesta = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
+      await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
       
       const tiempoEnvio = Date.now() - inicioEnvio
       console.log(`Tiempo de envío: ${tiempoEnvio}ms`)
@@ -387,7 +387,7 @@ export default function SistemaSolicitudes() {
       
       return
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Reintentos
       let intento = 1
       while (intento <= 3) {
@@ -398,12 +398,13 @@ export default function SistemaSolicitudes() {
           await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + intento)
           console.log(`Reintento ${intento} exitoso`)
           return
-        } catch (errorRetry) {
+        } catch (errorRetry: unknown) {
           console.error(`Reintento ${intento} fallido:`, errorRetry)
           intento++
         }
       }
       
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       mostrarMensaje(
         `Solicitud creada (Código ${solicitud.codigoUnico}), pero no pudimos enviar la confirmación. Intenta revisar el estado en la app.`,
         'advertencia'
@@ -446,8 +447,9 @@ export default function SistemaSolicitudes() {
       
       mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
       
-    } catch (error: any) {
-      mostrarMensaje(error.message, 'error')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      mostrarMensaje(errorMessage, 'error')
     } finally {
       setProcesando(false)
     }
