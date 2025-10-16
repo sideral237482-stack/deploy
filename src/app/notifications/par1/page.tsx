@@ -1,4 +1,4 @@
-// app/page.tsx - VERSION CORREGIDA
+// app/page.tsx - VERSION COMPLETAMENTE CORREGIDA
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -50,7 +50,6 @@ const SOLICITUDES_KEY = 'solicitudes_registradas'
 const ULTIMAS_SOLICITUDES_KEY = 'ultimas_solicitudes'
 
 export default function SistemaSolicitudes() {
-  // Eliminamos router ya que no se usa
   const [codigoUnico, setCodigoUnico] = useState('-')
   const [estadoSolicitud, setEstadoSolicitud] = useState('-')
   const [fechaRegistro, setFechaRegistro] = useState('-')
@@ -110,7 +109,8 @@ export default function SistemaSolicitudes() {
   }
 
   const calcularFechaEstimadaRespuesta = (fechaRegistro: Date, trabajaSabado: boolean = false): string => {
-    let fecha = new Date(fechaRegistro)
+    // LÍNEA 113 CORREGIDA: Cambiar let por const
+    const fecha = new Date(fechaRegistro)
     let diasHabiles = 0
     
     while (diasHabiles < 2) {
@@ -404,7 +404,7 @@ export default function SistemaSolicitudes() {
         }
       }
       
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      // LÍNEA 407 CORREGIDA: Eliminar errorMessage no usado
       mostrarMensaje(
         `Solicitud creada (Código ${solicitud.codigoUnico}), pero no pudimos enviar la confirmación. Intenta revisar el estado en la app.`,
         'advertencia'
