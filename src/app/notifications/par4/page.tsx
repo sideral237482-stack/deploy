@@ -21,9 +21,9 @@ const EVOLUTION_API_KEY = '429683C4C977415CAAFCCE10F7D57E11';
 const ENDPOINT = `${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE_NAME}`;
 
 async function sendWhatsAppMessage(formData: FormData) {
-  const required = ['nombreFixer','regionTelefono','numeroTelefono','nombreRequester','titulo','descripcion'];
+  const required: (keyof FormData)[] = ['nombreFixer','regionTelefono','numeroTelefono','nombreRequester','titulo','descripcion'];
   for (const f of required) {
-    const val = (formData as any)[f];
+    const val = formData[f];  // ← SIN 'any', usando TypeScript correctamente
     if (!val || String(val).trim() === '') return { success:false, message:`Falta el campo: ${f}` };
   }
 
@@ -214,3 +214,4 @@ export default function Page() {
   );
   
 }
+
