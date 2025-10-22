@@ -84,19 +84,19 @@ const LOGS_VERIFICACION_KEY = 'logs_verificacion_duplicados'
 
 export default function SistemaSolicitudes() {
   const router = useRouter()
-  const [codigoUnico, setCodigoUnico] = useState('-') // CAMBIO: Inicialmente vacío
-  const [estadoSolicitud, setEstadoSolicitud] = useState('-') // CAMBIO: Inicialmente vacío
-  const [estadoSolicitudPendiente, setEstadoSolicitudPendiente] = useState('') // Inicialmente vacío
-  const [fechaRegistro, setFechaRegistro] = useState('-') // CAMBIO: Inicialmente vacío
-  const [fechaEstimada, setFechaEstimada] = useState('-') // CAMBIO: Inicialmente vacío
+  const [codigoUnico, setCodigoUnico] = useState('-')
+  const [estadoSolicitud, setEstadoSolicitud] = useState('-')
+  const [estadoSolicitudPendiente, setEstadoSolicitudPendiente] = useState('')
+  const [fechaRegistro, setFechaRegistro] = useState('-')
+  const [fechaEstimada, setFechaEstimada] = useState('-')
   const [mensajeSistema, setMensajeSistema] = useState('')
   const [tipoMensaje, setTipoMensaje] = useState('')
   const [procesando, setProcesando] = useState(false)
   const [jsonEnviado, setJsonEnviado] = useState('')
   const [respuestaServidor, setRespuestaServidor] = useState('')
   const [logsReintentos, setLogsReintentos] = useState<LogReintento[]>([])
-  const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: any} | null>(null)
-  const [solicitudCreada, setSolicitudCreada] = useState(false) // Estado para controlar si se ha creado la solicitud
+  const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: Solicitud | null} | null>(null)
+  const [solicitudCreada, setSolicitudCreada] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
     region: '591',
@@ -409,7 +409,7 @@ export default function SistemaSolicitudes() {
     const s1Len = s1.length;
     const s2Len = s2.length;
 
-    let matrix: number[][] = [];
+    const matrix: number[][] = [];
 
     for (let i = 0; i <= s1Len; i++) {
       matrix[i] = [i];
@@ -434,7 +434,7 @@ export default function SistemaSolicitudes() {
 
   const verificarDuplicados = (solicitud: Solicitud): Solicitud | null => {
     const ultimas24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const solicitudesRecientes = JSON.parse(localStorage.getItem(ULTIMAS_SOLICITUDES_KEY) || '[]')
+    const solicitudesRecientes: Solicitud[] = JSON.parse(localStorage.getItem(ULTIMAS_SOLICITUDES_KEY) || '[]')
     
     // Si hay un fixer específico, aplicar la nueva verificación
     if (solicitud.nombreFixer && solicitud.nombreFixer.trim() !== '') {
@@ -607,9 +607,10 @@ export default function SistemaSolicitudes() {
       }
 
       return { respuesta, tiempoRespuesta }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const tiempoRespuesta = Date.now() - inicio
-      throw new Error(`Error al enviar: ${err.message} (Tiempo: ${tiempoRespuesta}ms)`)
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
+      throw new Error(`Error al enviar: ${errorMessage} (Tiempo: ${tiempoRespuesta}ms)`)
     }
   }
 
@@ -668,16 +669,17 @@ export default function SistemaSolicitudes() {
       mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
       return
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       // MANEJO MEJORADO DE ERRORES CON REINTENTOS CONDICIONALES
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
       
       // Si es un error de validación que requiere reintentos, proceder con reintentos
-      if (error.message.includes('Validación fallida:')) {
-        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${error.message}`)
+      if (errorMessage.includes('Validación fallida:')) {
+        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${errorMessage}`)
         // Continuar al flujo de reintentos
       }
-      else if (error.message.includes('400') || error.message.includes('Bad Request')) {
-        const deteccionError = detectarErrorCanalDesdeRespuesta(error.message)
+      else if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
+        const deteccionError = detectarErrorCanalDesdeRespuesta(errorMessage)
         
         agregarLogReintento(1, 0, `❌ ERROR 400: ${deteccionError.mensaje}`)
         
@@ -690,7 +692,7 @@ export default function SistemaSolicitudes() {
         // Si requiere reintentos, continuar al flujo de reintentos
         agregarLogReintento(1, 0, `⚠️ Error 400 pero se reintentará`)
       } else {
-        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, error.message)
+        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, errorMessage)
       }
       
       // FLUJO DE REINTENTOS (5s, 15s, 30s) - PARA TODOS LOS ERRORES QUE LLEGAN AQUÍ
@@ -730,10 +732,11 @@ export default function SistemaSolicitudes() {
           mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
           return
           
-        } catch (errorRetry: any) {
-          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetry.message)
+        } catch (errorRetry: unknown) {
+          const errorRetryMessage = errorRetry instanceof Error ? errorRetry.message : 'Error desconocido en reintento'
+          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetryMessage)
           
-          console.error(`Reintento ${intento - 1} fallido:`, errorRetry)
+          console.error(`Reintento ${intento - 1} fallido:`, errorRetryMessage)
           intento++
         }
       }
@@ -790,8 +793,9 @@ export default function SistemaSolicitudes() {
       // 6. Intentar enviar mensajes (manejará internamente los errores de canal y reintentos)
       await enviarMensajes(solicitudRegistrada)
       
-    } catch (error: any) {
-      mostrarMensaje(error.message, 'error')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
+      mostrarMensaje(errorMessage, 'error')
     } finally {
       setProcesando(false)
     }
@@ -803,7 +807,7 @@ export default function SistemaSolicitudes() {
     return logsReintentos.map(log => {
       const tiempo = log.timestamp.toLocaleTimeString()
       const base = `[${tiempo}] Intento ${log.intento}: ${log.resultado}`
-      const detalles = []
+      const detalles: string[] = []
       
       if (log.tiempoEspera > 0) {
         detalles.push(`Espera: ${log.tiempoEspera}ms`)
