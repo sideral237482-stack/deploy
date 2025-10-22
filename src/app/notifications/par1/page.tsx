@@ -2,7 +2,6 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { FaArrowLeft, FaExclamationTriangle } from 'react-icons/fa'
 
 // Interfaces y tipos
@@ -83,7 +82,6 @@ const ULTIMAS_SOLICITUDES_KEY = 'ultimas_solicitudes'
 const LOGS_VERIFICACION_KEY = 'logs_verificacion_duplicados'
 
 export default function SistemaSolicitudes() {
-  const router = useRouter()
   const [codigoUnico, setCodigoUnico] = useState('-')
   const [estadoSolicitud, setEstadoSolicitud] = useState('-')
   const [estadoSolicitudPendiente, setEstadoSolicitudPendiente] = useState('')
@@ -208,7 +206,7 @@ export default function SistemaSolicitudes() {
   }
 
   const calcularFechaEstimadaRespuesta = (fechaRegistro: Date, trabajaSabado: boolean = false): string => {
-    let fecha = new Date(fechaRegistro)
+    const fecha = new Date(fechaRegistro)
     let diasHabiles = 0
     
     while (diasHabiles < 2) {
