@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-//import { API_CONFIG } from './config';
-
 
 // Interfaces
 interface Fixer {
@@ -20,7 +18,7 @@ interface Solicitud {
   servicio: string;
   urlSolicitud: string;
   fecha: string;
-  fixer: Fixer; // Fixer asignado a esta solicitud
+  fixer: Fixer;
 }
 
 interface LogEntry {
@@ -40,7 +38,7 @@ interface LogEntry {
 const ADMIN_INFO = {
   nombre: 'Administrador ServiNeo',
   codigoPais: '+591',
-  numero: '69542509' // Número actualizado del administrador
+  numero: '69542509'
 };
 
 export default function SimulationHU3() {
@@ -108,7 +106,6 @@ export default function SimulationHU3() {
     urlSolicitud: '',
     fixerCodigoPais: '+591',
     fixerNumero: ''
-    // Removido: fixerNombre ya no es editable
   });
 
   // Estados para logs y reintentos
@@ -120,7 +117,7 @@ export default function SimulationHU3() {
   // Validaciones
   const validarMotivo = (texto: string): boolean => {
     const regex = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s.,!?¿¡()\-]*$/;
-    return regex.test(texto) && texto.length <= 100; // Cambiado de 500 a 100
+    return regex.test(texto) && texto.length <= 100;
   };
 
   const validarNumero = (numero: string): boolean => {
@@ -130,14 +127,6 @@ export default function SimulationHU3() {
 
   const validarCodigoPais = (codigo: string): boolean => {
     return ['+591', '+51', '+57', '+58'].includes(codigo);
-  };
-
-  const validarFecha = (fecha: string): boolean => {
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(fecha)) return false;
-    
-    const date = new Date(fecha);
-    return date instanceof Date && !isNaN(date.getTime());
   };
 
   // Función para agregar logs
@@ -225,8 +214,10 @@ No se ha podido entregar la notificación al cliente después de ${errorCount} i
       } else {
         throw new Error(data.mensaje || 'Error en la respuesta del servidor');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error al notificar al administrador:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       
       agregarLog({
         tipo: 'notificacion_administrador',
@@ -234,7 +225,7 @@ No se ha podido entregar la notificación al cliente después de ${errorCount} i
         cliente: solicitud.nombreRequester,
         servicio: solicitud.servicio,
         mensaje: `Error al enviar notificación al administrador`,
-        detalles: error.message,
+        detalles: errorMessage,
         exito: false
       });
     }
@@ -308,8 +299,10 @@ ${solicitud.urlSolicitud}`;
       } else {
         throw new Error(data.mensaje || 'Error en la respuesta del servidor');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error al notificar al fixer:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       
       agregarLog({
         tipo: 'notificacion_fixer',
@@ -317,7 +310,7 @@ ${solicitud.urlSolicitud}`;
         cliente: solicitud.nombreRequester,
         servicio: solicitud.servicio,
         mensaje: `Error al enviar notificación de fallo al fixer`,
-        detalles: error.message,
+        detalles: errorMessage,
         exito: false
       });
     }
@@ -333,7 +326,6 @@ ${solicitud.urlSolicitud}`;
       urlSolicitud: solicitud.urlSolicitud,
       fixerCodigoPais: solicitud.fixer.codigoPais,
       fixerNumero: solicitud.fixer.numero
-      // No incluimos fixerNombre ya que no es editable
     });
     setModalEdicionVisible(true);
     
@@ -374,26 +366,27 @@ ${solicitud.urlSolicitud}`;
       mostrarAlerta('error', '❌ URL de solicitud es obligatoria');
       return;
     }
-  const mismoCodigoPais = formEdicion.codigoPais.trim() === editandoSolicitud.codigoPais.trim();
-  const mismoNumero = formEdicion.numero.trim() === editandoSolicitud.numero.trim();
-  const mismaUrl = formEdicion.urlSolicitud.trim() === editandoSolicitud.urlSolicitud.trim();
-  const mismoFixerCodigo = formEdicion.fixerCodigoPais.trim() === editandoSolicitud.fixer.codigoPais.trim();
-  const mismoFixerNumero = formEdicion.fixerNumero.trim() === editandoSolicitud.fixer.numero.trim();
 
-  const sinCambios = (
-    mismoCodigoPais &&
-    mismoNumero &&
-    mismaUrl &&
-    mismoFixerCodigo &&
-    mismoFixerNumero
-  );
+    const mismoCodigoPais = formEdicion.codigoPais.trim() === editandoSolicitud.codigoPais.trim();
+    const mismoNumero = formEdicion.numero.trim() === editandoSolicitud.numero.trim();
+    const mismaUrl = formEdicion.urlSolicitud.trim() === editandoSolicitud.urlSolicitud.trim();
+    const mismoFixerCodigo = formEdicion.fixerCodigoPais.trim() === editandoSolicitud.fixer.codigoPais.trim();
+    const mismoFixerNumero = formEdicion.fixerNumero.trim() === editandoSolicitud.fixer.numero.trim();
 
-  if (sinCambios) {
-    mostrarAlerta('error', '⚠️ No se detectaron cambios para guardar');
-    setModalEdicionVisible(false);
-    setEditandoSolicitud(null);
-    return;
-  }
+    const sinCambios = (
+      mismoCodigoPais &&
+      mismoNumero &&
+      mismaUrl &&
+      mismoFixerCodigo &&
+      mismoFixerNumero
+    );
+
+    if (sinCambios) {
+      mostrarAlerta('error', '⚠️ No se detectaron cambios para guardar');
+      setModalEdicionVisible(false);
+      setEditandoSolicitud(null);
+      return;
+    }
 
     setSolicitudes(prev => 
       prev.map(s => 
@@ -548,12 +541,13 @@ Lamentamos informarte que tu solicitud ha sido rechazada.
       } else {
         throw new Error(data.mensaje || 'Error en la respuesta del servidor');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error con PAR5:', error);
       
-      const mensajeError = error.name === 'AbortError' 
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const mensajeError = error instanceof Error && error.name === 'AbortError' 
         ? '⏰ Tiempo de espera agotado. Verifica tu conexión a internet.'
-        : `🌐 Error de conexión: ${error.message}`;
+        : `🌐 Error de conexión: ${errorMessage}`;
 
       // Incrementar contador de reintentos
       const currentCount = reintentosCount[solicitud.id] || 0;
@@ -581,7 +575,7 @@ Lamentamos informarte que tu solicitud ha sido rechazada.
         servicio: solicitud.servicio,
         estado,
         mensaje: `Error al enviar mensaje ${estado} (Intento ${newCount})`,
-        detalles: `Fixer: ${solicitud.fixer.nombre} | Error: ${error.message}`,
+        detalles: `Fixer: ${solicitud.fixer.nombre} | Error: ${errorMessage}`,
         exito: false
       });
       
