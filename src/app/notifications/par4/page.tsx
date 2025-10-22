@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
 interface FormData {
   idCita: string;
   nombreFixer: string;
