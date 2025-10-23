@@ -209,7 +209,7 @@ export default function SistemaSolicitudes() {
   }
 
   const calcularFechaEstimadaRespuesta = (fechaRegistro: Date, trabajaSabado: boolean = false): string => {
-    let fecha = new Date(fechaRegistro)
+    const fecha = new Date(fechaRegistro)
     let diasHabiles = 0
     
     while (diasHabiles < 2) {
@@ -598,13 +598,13 @@ export default function SistemaSolicitudes() {
       })
 
       const tiempoRespuesta = Date.now() - inicio
-      const respuesta = await res.text()
+      const respuestaText = await res.text()
       
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${respuesta}`)
+        throw new Error(`Error ${res.status}: ${respuestaText}`)
       }
 
-      return { respuesta, tiempoRespuesta }
+      return { respuesta: respuestaText, tiempoRespuesta }
     } catch (err: unknown) {
       const tiempoRespuesta = Date.now() - inicio
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
@@ -649,7 +649,7 @@ export default function SistemaSolicitudes() {
       const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
       
       agregarLogReintento(1, 0, 'Iniciando envío...')
-      const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
+      const { tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
       
       agregarLogReintento(1, 0, '✅ ENVÍO EXITOSO', tiempoRespuesta)
       
@@ -705,7 +705,7 @@ export default function SistemaSolicitudes() {
           }
           
           const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
-          const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
+          const { tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
           
           agregarLogReintento(intento, tiempoEspera, '✅ REINTENTO EXITOSO', tiempoRespuesta)
           
