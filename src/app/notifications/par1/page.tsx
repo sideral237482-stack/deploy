@@ -270,7 +270,7 @@ export default function SistemaSolicitudes() {
   }
 
   const calcularFechaEstimadaRespuesta = (fechaRegistro: Date, trabajaSabado: boolean = false): string => {
-    let fecha = new Date(fechaRegistro)
+    const fecha = new Date(fechaRegistro)
     let diasHabiles = 0
     
     while (diasHabiles < 2) {
@@ -486,7 +486,7 @@ export default function SistemaSolicitudes() {
     const s1Len = s1.length;
     const s2Len = s2.length;
 
-    let matrix: number[][] = [];
+    const matrix: number[][] = [];
 
     for (let i = 0; i <= s1Len; i++) {
       matrix[i] = [i];
@@ -677,16 +677,17 @@ export default function SistemaSolicitudes() {
       })
 
       const tiempoRespuesta = Date.now() - inicio
-      const respuesta = await res.text()
+      const _respuesta = await res.text()
       
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${respuesta}`)
+        throw new Error(`Error ${res.status}: ${_respuesta}`)
       }
 
-      return { respuesta, tiempoRespuesta }
-    } catch (err: any) {
+      return { respuesta: _respuesta, tiempoRespuesta }
+    } catch (err: unknown) {
       const tiempoRespuesta = Date.now() - inicio
-      throw new Error(`Error al enviar: ${err.message} (Tiempo: ${tiempoRespuesta}ms)`)
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      throw new Error(`Error al enviar: ${errorMessage} (Tiempo: ${tiempoRespuesta}ms)`)
     }
   }
 
@@ -740,7 +741,7 @@ export default function SistemaSolicitudes() {
       const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
       
       agregarLogReintento(1, 0, 'Iniciando envío...')
-      const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
+      const { tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
       
       agregarLogReintento(1, 0, '✅ ENVÍO EXITOSO', tiempoRespuesta)
       
@@ -751,12 +752,13 @@ export default function SistemaSolicitudes() {
       mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
       return
       
-    } catch (error: any) {
-      if (error.message.includes('Validación fallida:')) {
-        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${error.message}`)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes('Validación fallida:')) {
+        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${errorMessage}`)
       }
-      else if (error.message.includes('400') || error.message.includes('Bad Request')) {
-        const deteccionError = detectarErrorCanalDesdeRespuesta(error.message)
+      else if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
+        const deteccionError = detectarErrorCanalDesdeRespuesta(errorMessage)
         
         agregarLogReintento(1, 0, `❌ ERROR 400: ${deteccionError.mensaje}`)
         
@@ -780,7 +782,7 @@ export default function SistemaSolicitudes() {
         
         agregarLogReintento(1, 0, `⚠️ Error 400 pero se reintentará`)
       } else {
-        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, error.message)
+        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, errorMessage)
       }
       
       let intento = 2
@@ -819,16 +821,17 @@ export default function SistemaSolicitudes() {
           }
           
           const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
-          const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
+          const { tiempoRespuesta: tiempoReintento } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
           
-          agregarLogReintento(intento, tiempoEspera, '✅ REINTENTO EXITOSO', tiempoRespuesta)
+          agregarLogReintento(intento, tiempoEspera, '✅ REINTENTO EXITOSO', tiempoReintento)
           
           actualizarUI(solicitud)
           mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
           return
           
-        } catch (errorRetry: any) {
-          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetry.message)
+        } catch (errorRetry: unknown) {
+          const errorRetryMessage = errorRetry instanceof Error ? errorRetry.message : String(errorRetry)
+          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetryMessage)
           intento++
         }
       }
@@ -876,8 +879,9 @@ export default function SistemaSolicitudes() {
       
       await enviarMensajes(solicitudRegistrada)
       
-    } catch (error: any) {
-      mostrarMensaje(error.message, 'error')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      mostrarMensaje(errorMessage, 'error')
     } finally {
       setProcesando(false)
     }
@@ -906,7 +910,7 @@ export default function SistemaSolicitudes() {
   }
 
   const goBack = () => {
-    window.location.href = '/servineo';
+    router.push('/servineo');
   }
 
   return (
@@ -947,7 +951,7 @@ export default function SistemaSolicitudes() {
         {solicitudCreada ? (
           <div className="status-item">
             <div className="status-label">Código Único</div>
-            <div className="status-value">{codigoUnico}</div>
+            <div class="status-value">{codigoUnico}</div>
           </div>
         ) : (
           <div className="status-item">
