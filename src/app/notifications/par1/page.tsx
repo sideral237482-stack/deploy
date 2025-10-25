@@ -891,18 +891,17 @@ export default function SistemaSolicitudes() {
   }
 
   return (
-    <div className="container" style={{position: 'relative'}}>
+    <div className="container">
+      {/* Botón VOLVER */}
       <button
         onClick={goBack}
-        className="absolute top-4 left-4 p-4 bg-[#2B3FE0] text-[#2BD0F0] rounded-xl hover:bg-[#1AA7ED] hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 z-10 min-w-[120px]"
-        title="Atrás"
-        style={{minWidth: '120px', whiteSpace: 'nowrap'}}
+        className="flex items-center gap-2 px-4 py-2 bg-[#2B31E0] text-white rounded-lg hover:bg-[#2B6AE0] transition duration-300 font-medium mb-6"
       >
-        <FaArrowLeft className="h-5 w-5 flex-shrink-0" />
-        <span className="font-semibold text-base">Atrás</span>
+        <FaArrowLeft className="h-4 w-4" />
+        <span>Volver</span>
       </button>
 
-      <div className="header" style={{marginTop: '70px'}}>
+      <div className="header">
         <h1 className="main-title">Sistema de Solicitudes</h1>
         <p className="subtitle">Gestiona solicitudes y comunica con los Fixers fácilmente</p>
       </div>
