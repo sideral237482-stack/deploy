@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { FaArrowLeft, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa'
 
 // Interfaces y tipos
@@ -95,7 +95,6 @@ const LOGS_VERIFICACION_KEY = 'logs_verificacion_duplicados'
 const SOLICITUDES_INVALIDAS_KEY = 'solicitudes_invalidas'
 
 export default function SistemaSolicitudes() {
-  const router = useRouter()
   const [codigoUnico, setCodigoUnico] = useState('-')
   const [estadoSolicitud, setEstadoSolicitud] = useState('-')
   const [estadoSolicitudPendiente, setEstadoSolicitudPendiente] = useState('')
@@ -886,20 +885,17 @@ export default function SistemaSolicitudes() {
     }).join('\n')
   }
 
-  const goBack = () => {
-    router.push('/servineo');
-  }
-
   return (
     <div className="container">
-      {/* Botón VOLVER */}
-      <button
-        onClick={goBack}
-        className="flex items-center gap-2 px-4 py-2 bg-[#2B31E0] text-white rounded-lg hover:bg-[#2B6AE0] transition duration-300 font-medium mb-6"
+      {/* Botón VOLVER - Cambiado a Link para navegación suave sin deformaciones */}
+      <Link
+        href="/servineo"
+        className="inline-flex items-center gap-2 px-4 py-2 bg-[#2B31E0] text-white rounded-lg hover:bg-[#2B6AE0] transition duration-300 font-medium mb-6 no-underline"
+        prefetch={false}
       >
         <FaArrowLeft className="h-4 w-4" />
         <span>Volver</span>
-      </button>
+      </Link>
 
       <div className="header">
         <h1 className="main-title">Sistema de Solicitudes</h1>
