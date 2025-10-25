@@ -107,7 +107,7 @@ export default function SistemaSolicitudes() {
   const [jsonEnviado, setJsonEnviado] = useState('')
   const [respuestaServidor, setRespuestaServidor] = useState('')
   const [logsReintentos, setLogsReintentos] = useState<LogReintento[]>([])
-  const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: any} | null>(null)
+  const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: Solicitud | null} | null>(null)
   const [solicitudCreada, setSolicitudCreada] = useState(false)
   const [ultimaSolicitudInvalida, setUltimaSolicitudInvalida] = useState<SolicitudInvalida | null>(null) // CAMBIO: Solo la última
   const [mostrarSolicitudesInvalidas, setMostrarSolicitudesInvalidas] = useState(false)
@@ -149,23 +149,6 @@ export default function SistemaSolicitudes() {
     }
     if (!localStorage.getItem(SOLICITUDES_INVALIDAS_KEY)) {
       localStorage.setItem(SOLICITUDES_INVALIDAS_KEY, JSON.stringify([]))
-    }
-  }
-
-  const cargarUltimaSolicitudInvalida = () => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      const solicitudesInvalidasStorage = localStorage.getItem(SOLICITUDES_INVALIDAS_KEY)
-      if (solicitudesInvalidasStorage) {
-        const solicitudes = JSON.parse(solicitudesInvalidasStorage)
-        // OBTENER SOLO LA ÚLTIMA SOLICITUD
-        if (solicitudes.length > 0) {
-          setUltimaSolicitudInvalida(solicitudes[solicitudes.length - 1])
-        }
-      }
-    } catch (error) {
-      console.error('Error al cargar última solicitud inválida:', error)
     }
   }
 
@@ -951,7 +934,7 @@ export default function SistemaSolicitudes() {
         {solicitudCreada ? (
           <div className="status-item">
             <div className="status-label">Código Único</div>
-            <div class="status-value">{codigoUnico}</div>
+            <div className="status-value">{codigoUnico}</div>
           </div>
         ) : (
           <div className="status-item">
