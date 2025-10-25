@@ -107,7 +107,7 @@ export default function SistemaSolicitudes() {
   const [jsonEnviado, setJsonEnviado] = useState('')
   const [respuestaServidor, setRespuestaServidor] = useState('')
   const [logsReintentos, setLogsReintentos] = useState<LogReintento[]>([])
-  const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: Solicitud | null} | null>(null)
+  const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: any} | null>(null)
   const [solicitudCreada, setSolicitudCreada] = useState(false)
   const [solicitudesInvalidas, setSolicitudesInvalidas] = useState<SolicitudInvalida[]>([])
 
@@ -131,9 +131,10 @@ export default function SistemaSolicitudes() {
   useEffect(() => {
     inicializarAlmacenamiento()
     cargarSolicitudesInvalidas()
+    limpiarMensajes() // ← Limpiar mensajes al cargar el componente
   }, [])
 
-  const inicializarAlmacenamiento = (): void => {
+  const inicializarAlmacenamiento = () => {
     if (!localStorage.getItem(SOLICITUDES_KEY)) {
       localStorage.setItem(SOLICITUDES_KEY, JSON.stringify([]))
     }
@@ -148,7 +149,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const cargarSolicitudesInvalidas = (): void => {
+  const cargarSolicitudesInvalidas = () => {
     try {
       const solicitudesInvalidasStorage = localStorage.getItem(SOLICITUDES_INVALIDAS_KEY)
       if (solicitudesInvalidasStorage) {
@@ -159,7 +160,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const guardarSolicitudInvalida = (solicitud: SolicitudInvalida): void => {
+  const guardarSolicitudInvalida = (solicitud: SolicitudInvalida) => {
     try {
       const solicitudesExistentes: SolicitudInvalida[] = JSON.parse(localStorage.getItem(SOLICITUDES_INVALIDAS_KEY) || '[]')
       solicitudesExistentes.push(solicitud)
@@ -175,7 +176,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const guardarLogVerificacion = (log: LogVerificacion): void => {
+  const guardarLogVerificacion = (log: LogVerificacion) => {
     try {
       const logsExistentes: LogVerificacion[] = JSON.parse(localStorage.getItem(LOGS_VERIFICACION_KEY) || '[]')
       logsExistentes.push(log)
@@ -250,7 +251,7 @@ export default function SistemaSolicitudes() {
   }
 
   const calcularFechaEstimadaRespuesta = (fechaRegistro: Date, trabajaSabado: boolean = false): string => {
-    const fecha = new Date(fechaRegistro)
+    let fecha = new Date(fechaRegistro)
     let diasHabiles = 0
     
     while (diasHabiles < 2) {
@@ -384,7 +385,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target
     
     if (id === 'servicio') {
@@ -420,19 +421,34 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const mostrarMensaje = (mensaje: string, tipo: string = 'error', tiempoVisible: number = 0): void => {
+  const mostrarMensaje = (mensaje: string, tipo: string = 'error', tiempoVisible: number = 0) => {
     setMensajeSistema(mensaje)
     setTipoMensaje(tipo)
     
+    // Para mensajes de éxito y advertencia, establecer un tiempo de auto-limpieza
+    if (tiempoVisible === 0) {
+      // Si no se especifica tiempo, usar valores por defecto según el tipo
+      if (tipo === 'success') {
+        tiempoVisible = 5000 // 5 segundos para éxito
+      } else if (tipo === 'advertencia') {
+        tiempoVisible = 6000 // 6 segundos para advertencias
+      } else {
+        tiempoVisible = 0 // Los errores permanecen hasta acción del usuario
+      }
+    }
+    
     if (tiempoVisible > 0) {
       setTimeout(() => {
-        setMensajeSistema('')
-        setTipoMensaje('')
+        // Solo limpiar si el mensaje actual es el mismo que estamos mostrando
+        if (mensajeSistema === mensaje) {
+          setMensajeSistema('')
+          setTipoMensaje('')
+        }
       }, tiempoVisible)
     }
   }
 
-  const limpiarMensajes = (): void => {
+  const limpiarMensajes = () => {
     setMensajeSistema('')
     setTipoMensaje('')
     setDuplicadoDetectado(null)
@@ -451,7 +467,7 @@ export default function SistemaSolicitudes() {
     const s1Len = s1.length;
     const s2Len = s2.length;
 
-    const matrix: number[][] = [];
+    let matrix: number[][] = [];
 
     for (let i = 0; i <= s1Len; i++) {
       matrix[i] = [i];
@@ -476,7 +492,7 @@ export default function SistemaSolicitudes() {
 
   const verificarDuplicados = (solicitud: Solicitud): Solicitud | null => {
     const ultimas24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const solicitudesRecientes: Solicitud[] = JSON.parse(localStorage.getItem(ULTIMAS_SOLICITUDES_KEY) || '[]')
+    const solicitudesRecientes = JSON.parse(localStorage.getItem(ULTIMAS_SOLICITUDES_KEY) || '[]')
     
     if (solicitud.nombreFixer && solicitud.nombreFixer.trim() !== '') {
       const resultado = verificarDuplicadoFixerServicio(solicitud.nombreFixer, solicitud.servicio)
@@ -602,7 +618,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const agregarLogReintento = (intento: number, tiempoEspera: number, resultado: string, tiempoRespuesta?: number, error?: string): void => {
+  const agregarLogReintento = (intento: number, tiempoEspera: number, resultado: string, tiempoRespuesta?: number, error?: string) => {
     const nuevoLog: LogReintento = {
       intento,
       timestamp: new Date(),
@@ -645,10 +661,9 @@ export default function SistemaSolicitudes() {
       }
 
       return { respuesta, tiempoRespuesta }
-    } catch (err: unknown) {
+    } catch (err: any) {
       const tiempoRespuesta = Date.now() - inicio
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      throw new Error(`Error al enviar: ${errorMessage} (Tiempo: ${tiempoRespuesta}ms)`)
+      throw new Error(`Error al enviar: ${err.message} (Tiempo: ${tiempoRespuesta}ms)`)
     }
   }
 
@@ -713,14 +728,12 @@ export default function SistemaSolicitudes() {
       mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
       return
       
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      
-      if (errorMessage.includes('Validación fallida:')) {
-        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${errorMessage}`)
+    } catch (error: any) {
+      if (error.message.includes('Validación fallida:')) {
+        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${error.message}`)
       }
-      else if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
-        const deteccionError = detectarErrorCanalDesdeRespuesta(errorMessage)
+      else if (error.message.includes('400') || error.message.includes('Bad Request')) {
+        const deteccionError = detectarErrorCanalDesdeRespuesta(error.message)
         
         agregarLogReintento(1, 0, `❌ ERROR 400: ${deteccionError.mensaje}`)
         
@@ -744,7 +757,7 @@ export default function SistemaSolicitudes() {
         
         agregarLogReintento(1, 0, `⚠️ Error 400 pero se reintentará`)
       } else {
-        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, errorMessage)
+        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, error.message)
       }
       
       let intento = 2
@@ -783,37 +796,37 @@ export default function SistemaSolicitudes() {
           }
           
           const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
-          const { tiempoRespuesta: tiempoRespuestaReintento } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
+          const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
           
-          agregarLogReintento(intento, tiempoEspera, '✅ REINTENTO EXITOSO', tiempoRespuestaReintento)
+          agregarLogReintento(intento, tiempoEspera, '✅ REINTENTO EXITOSO', tiempoRespuesta)
           
           actualizarUI(solicitud)
           mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
           return
           
-        } catch (errorRetry: unknown) {
-          const errorRetryMessage = errorRetry instanceof Error ? errorRetry.message : 'Error desconocido en reintento'
-          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetryMessage)
+        } catch (errorRetry: any) {
+          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetry.message)
           intento++
         }
       }
       
       const tiempoTotal = Date.now() - inicioEnvio
-      const mensajeErrorFinal = `Solicitud creada (Código ${solicitud.codigoUnico}), pero no pudimos enviar la confirmación después de 3 reintentos. Tiempo total: ${tiempoTotal}ms. Intenta revisar el estado en la app.`
+      const mensajeError = `Solicitud creada (Código ${solicitud.codigoUnico}), pero no pudimos enviar la confirmación después de 3 reintentos. Tiempo total: ${tiempoTotal}ms. Intenta revisar el estado en la app.`
       
-      agregarLogReintento(0, tiempoTotal, `💥 TODOS LOS REINTENTOS FALLARON`, undefined, mensajeErrorFinal)
+      agregarLogReintento(0, tiempoTotal, `💥 TODOS LOS REINTENTOS FALLARON`, undefined, mensajeError)
       
-      mostrarMensaje(mensajeErrorFinal, 'advertencia')
-      throw new Error(mensajeErrorFinal)
+      mostrarMensaje(mensajeError, 'advertencia')
+      throw new Error(mensajeError)
     }
   }
 
-  const procesarSolicitud = async (): Promise<void> => {
+  const procesarSolicitud = async () => {
     setProcesando(true)
-    limpiarMensajes()
+    limpiarMensajes() // ← Esto limpia los mensajes anteriores
     setJsonEnviado('')
     setRespuestaServidor('')
     setLogsReintentos([])
+    setSolicitudCreada(false) // ← También resetear el estado de solicitud creada
 
     try {
       if (!validarDatos()) {
@@ -843,9 +856,8 @@ export default function SistemaSolicitudes() {
       
       await enviarMensajes(solicitudRegistrada)
       
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al procesar solicitud'
-      mostrarMensaje(errorMessage, 'error')
+    } catch (error: any) {
+      mostrarMensaje(error.message, 'error')
     } finally {
       setProcesando(false)
     }
@@ -873,7 +885,7 @@ export default function SistemaSolicitudes() {
     }).join('\n')
   }
 
-  const goBack = (): void => {
+  const goBack = () => {
     window.location.href = '/servineo';
   }
 
