@@ -1,8 +1,9 @@
-// app/page.tsx - VERSION CON LÍMITE DE CARACTERES Y DETALLE DE CÓDIGO ÚNICO
+// app/page.tsx - VERSION CON SOLICITUDES INVÁLIDAS
 "use client"
 
 import { useState, useEffect } from 'react'
-import { FaArrowLeft, FaExclamationTriangle } from 'react-icons/fa'
+import { useRouter } from 'next/navigation'
+import { FaArrowLeft, FaExclamationTriangle, FaTimesCircle } from 'react-icons/fa'
 
 // Interfaces y tipos
 interface FormData {
@@ -75,18 +76,26 @@ interface ErrorCanal {
   numero: string
 }
 
-interface DuplicadoDetectado {
-  encontrado: boolean
-  codigo: string
-  datos: Solicitud | null
+// Nueva interfaz para solicitudes inválidas
+interface SolicitudInvalida {
+  codigoUnico: string
+  estado: string
+  fechaRegistro: string
+  fechaEstimada: string
+  motivo: string
+  numero: string
+  servicio: string
+  nombreRequester: string
 }
 
 // Constantes
 const SOLICITUDES_KEY = 'solicitudes_registradas'
 const ULTIMAS_SOLICITUDES_KEY = 'ultimas_solicitudes'
 const LOGS_VERIFICACION_KEY = 'logs_verificacion_duplicados'
+const SOLICITUDES_INVALIDAS_KEY = 'solicitudes_invalidas'
 
 export default function SistemaSolicitudes() {
+  const router = useRouter()
   const [codigoUnico, setCodigoUnico] = useState('-')
   const [estadoSolicitud, setEstadoSolicitud] = useState('-')
   const [estadoSolicitudPendiente, setEstadoSolicitudPendiente] = useState('')
@@ -98,8 +107,9 @@ export default function SistemaSolicitudes() {
   const [jsonEnviado, setJsonEnviado] = useState('')
   const [respuestaServidor, setRespuestaServidor] = useState('')
   const [logsReintentos, setLogsReintentos] = useState<LogReintento[]>([])
-  const [duplicadoDetectado, setDuplicadoDetectado] = useState<DuplicadoDetectado | null>(null)
+  const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: any} | null>(null)
   const [solicitudCreada, setSolicitudCreada] = useState(false)
+  const [solicitudesInvalidas, setSolicitudesInvalidas] = useState<SolicitudInvalida[]>([])
 
   const [formData, setFormData] = useState<FormData>({
     region: '591',
@@ -120,9 +130,10 @@ export default function SistemaSolicitudes() {
 
   useEffect(() => {
     inicializarAlmacenamiento()
+    cargarSolicitudesInvalidas()
   }, [])
 
-  const inicializarAlmacenamiento = (): void => {
+  const inicializarAlmacenamiento = () => {
     if (!localStorage.getItem(SOLICITUDES_KEY)) {
       localStorage.setItem(SOLICITUDES_KEY, JSON.stringify([]))
     }
@@ -132,9 +143,39 @@ export default function SistemaSolicitudes() {
     if (!localStorage.getItem(LOGS_VERIFICACION_KEY)) {
       localStorage.setItem(LOGS_VERIFICACION_KEY, JSON.stringify([]))
     }
+    if (!localStorage.getItem(SOLICITUDES_INVALIDAS_KEY)) {
+      localStorage.setItem(SOLICITUDES_INVALIDAS_KEY, JSON.stringify([]))
+    }
   }
 
-  const guardarLogVerificacion = (log: LogVerificacion): void => {
+  const cargarSolicitudesInvalidas = () => {
+    try {
+      const solicitudesInvalidasStorage = localStorage.getItem(SOLICITUDES_INVALIDAS_KEY)
+      if (solicitudesInvalidasStorage) {
+        setSolicitudesInvalidas(JSON.parse(solicitudesInvalidasStorage))
+      }
+    } catch (error) {
+      console.error('Error al cargar solicitudes inválidas:', error)
+    }
+  }
+
+  const guardarSolicitudInvalida = (solicitud: SolicitudInvalida) => {
+    try {
+      const solicitudesExistentes: SolicitudInvalida[] = JSON.parse(localStorage.getItem(SOLICITUDES_INVALIDAS_KEY) || '[]')
+      solicitudesExistentes.push(solicitud)
+      
+      if (solicitudesExistentes.length > 100) {
+        solicitudesExistentes.splice(0, solicitudesExistentes.length - 100)
+      }
+      
+      localStorage.setItem(SOLICITUDES_INVALIDAS_KEY, JSON.stringify(solicitudesExistentes))
+      setSolicitudesInvalidas(solicitudesExistentes)
+    } catch (error) {
+      console.error('Error al guardar solicitud inválida:', error)
+    }
+  }
+
+  const guardarLogVerificacion = (log: LogVerificacion) => {
     try {
       const logsExistentes: LogVerificacion[] = JSON.parse(localStorage.getItem(LOGS_VERIFICACION_KEY) || '[]')
       logsExistentes.push(log)
@@ -209,7 +250,7 @@ export default function SistemaSolicitudes() {
   }
 
   const calcularFechaEstimadaRespuesta = (fechaRegistro: Date, trabajaSabado: boolean = false): string => {
-    const fecha = new Date(fechaRegistro)
+    let fecha = new Date(fechaRegistro)
     let diasHabiles = 0
     
     while (diasHabiles < 2) {
@@ -343,7 +384,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>): void => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target
     
     if (id === 'servicio') {
@@ -379,7 +420,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const mostrarMensaje = (mensaje: string, tipo: string = 'error', tiempoVisible: number = 0): void => {
+  const mostrarMensaje = (mensaje: string, tipo: string = 'error', tiempoVisible: number = 0) => {
     setMensajeSistema(mensaje)
     setTipoMensaje(tipo)
     
@@ -391,7 +432,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const limpiarMensajes = (): void => {
+  const limpiarMensajes = () => {
     setMensajeSistema('')
     setTipoMensaje('')
     setDuplicadoDetectado(null)
@@ -410,7 +451,7 @@ export default function SistemaSolicitudes() {
     const s1Len = s1.length;
     const s2Len = s2.length;
 
-    const matrix: number[][] = [];
+    let matrix: number[][] = [];
 
     for (let i = 0; i <= s1Len; i++) {
       matrix[i] = [i];
@@ -435,7 +476,7 @@ export default function SistemaSolicitudes() {
 
   const verificarDuplicados = (solicitud: Solicitud): Solicitud | null => {
     const ultimas24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const solicitudesRecientes: Solicitud[] = JSON.parse(localStorage.getItem(ULTIMAS_SOLICITUDES_KEY) || '[]')
+    const solicitudesRecientes = JSON.parse(localStorage.getItem(ULTIMAS_SOLICITUDES_KEY) || '[]')
     
     if (solicitud.nombreFixer && solicitud.nombreFixer.trim() !== '') {
       const resultado = verificarDuplicadoFixerServicio(solicitud.nombreFixer, solicitud.servicio)
@@ -526,7 +567,6 @@ export default function SistemaSolicitudes() {
       }
     })
     
-    // CAMBIO: No actualizar la UI aquí, solo en enviarMensajes exitoso
     if (solicitud.tieneFixerEspecifico) {
       mostrarMensaje(`Solicitud creada con fixer específico: ${solicitud.nombreFixer}`, 'success', 3000)
     }
@@ -542,7 +582,7 @@ export default function SistemaSolicitudes() {
     setFechaRegistro(solicitud.fechaRegistroStr)
     setFechaEstimada(solicitud.fechaEstimada)
     setCodigoUnico(solicitud.codigoUnico)
-    setSolicitudCreada(true) // Marcar que la solicitud se ha creado
+    setSolicitudCreada(true)
     
     if (solicitud.tieneFixerEspecifico) {
       setEstadoSolicitud(`${solicitud.estado} (Fixer: ${solicitud.nombreFixer})`)
@@ -562,7 +602,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const agregarLogReintento = (intento: number, tiempoEspera: number, resultado: string, tiempoRespuesta?: number, error?: string): void => {
+  const agregarLogReintento = (intento: number, tiempoEspera: number, resultado: string, tiempoRespuesta?: number, error?: string) => {
     const nuevoLog: LogReintento = {
       intento,
       timestamp: new Date(),
@@ -598,17 +638,16 @@ export default function SistemaSolicitudes() {
       })
 
       const tiempoRespuesta = Date.now() - inicio
-      const respuestaText = await res.text()
+      const respuesta = await res.text()
       
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${respuestaText}`)
+        throw new Error(`Error ${res.status}: ${respuesta}`)
       }
 
-      return { respuesta: respuestaText, tiempoRespuesta }
-    } catch (err: unknown) {
+      return { respuesta, tiempoRespuesta }
+    } catch (err: any) {
       const tiempoRespuesta = Date.now() - inicio
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido'
-      throw new Error(`Error al enviar: ${errorMessage} (Tiempo: ${tiempoRespuesta}ms)`)
+      throw new Error(`Error al enviar: ${err.message} (Tiempo: ${tiempoRespuesta}ms)`)
     }
   }
 
@@ -627,6 +666,19 @@ export default function SistemaSolicitudes() {
           agregarLogReintento(1, 0, `⚠️ Número inválido pero se activarán reintentos`)
           throw new Error(`Validación fallida: ${mensajeError}`)
         } else {
+          // GUARDAR SOLICITUD INVÁLIDA
+          const solicitudInvalida: SolicitudInvalida = {
+            codigoUnico: solicitud.codigoUnico,
+            estado: 'solicitud:invalida',
+            fechaRegistro: solicitud.fechaRegistroStr,
+            fechaEstimada: solicitud.fechaEstimada,
+            motivo: mensajeError,
+            numero: solicitud.numero,
+            servicio: solicitud.servicio,
+            nombreRequester: solicitud.nombreRequester
+          }
+          guardarSolicitudInvalida(solicitudInvalida)
+          
           mostrarMensaje(`✅ Solicitud registrada (${solicitud.codigoUnico}), pero ${mensajeError.toLowerCase()}`, 'advertencia')
           
           guardarLogVerificacion({
@@ -649,37 +701,47 @@ export default function SistemaSolicitudes() {
       const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
       
       agregarLogReintento(1, 0, 'Iniciando envío...')
-      const { tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
+      const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
       
       agregarLogReintento(1, 0, '✅ ENVÍO EXITOSO', tiempoRespuesta)
       
       const tiempoEnvio = Date.now() - inicioEnvio
       console.log(`Tiempo de envío: ${tiempoEnvio}ms`)
       
-      // CAMBIO: Actualizar UI solo cuando el envío es exitoso
       actualizarUI(solicitud)
       mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
       return
       
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      
-      if (errorMessage.includes('Validación fallida:')) {
-        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${errorMessage}`)
+    } catch (error: any) {
+      if (error.message.includes('Validación fallida:')) {
+        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${error.message}`)
       }
-      else if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
-        const deteccionError = detectarErrorCanalDesdeRespuesta(errorMessage)
+      else if (error.message.includes('400') || error.message.includes('Bad Request')) {
+        const deteccionError = detectarErrorCanalDesdeRespuesta(error.message)
         
         agregarLogReintento(1, 0, `❌ ERROR 400: ${deteccionError.mensaje}`)
         
         if (!deteccionError.requiereReintentos) {
+          // GUARDAR SOLICITUD INVÁLIDA
+          const solicitudInvalida: SolicitudInvalida = {
+            codigoUnico: solicitud.codigoUnico,
+            estado: 'solicitud:invalida',
+            fechaRegistro: solicitud.fechaRegistroStr,
+            fechaEstimada: solicitud.fechaEstimada,
+            motivo: deteccionError.mensaje,
+            numero: solicitud.numero,
+            servicio: solicitud.servicio,
+            nombreRequester: solicitud.nombreRequester
+          }
+          guardarSolicitudInvalida(solicitudInvalida)
+          
           mostrarMensaje(`✅ Solicitud registrada (${solicitud.codigoUnico}), pero ${deteccionError.mensaje.toLowerCase()}`, 'advertencia')
           return
         }
         
         agregarLogReintento(1, 0, `⚠️ Error 400 pero se reintentará`)
       } else {
-        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, errorMessage)
+        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, error.message)
       }
       
       let intento = 2
@@ -698,6 +760,19 @@ export default function SistemaSolicitudes() {
           if (intento === 2) {
             const validacionReintento = validarCanal(solicitud.numero)
             if (!validacionReintento.valido && !validacionReintento.requiereReintentos) {
+              // GUARDAR SOLICITUD INVÁLIDA
+              const solicitudInvalida: SolicitudInvalida = {
+                codigoUnico: solicitud.codigoUnico,
+                estado: 'solicitud:invalida',
+                fechaRegistro: solicitud.fechaRegistroStr,
+                fechaEstimada: solicitud.fechaEstimada,
+                motivo: validacionReintento.error?.mensaje || 'Error de canal',
+                numero: solicitud.numero,
+                servicio: solicitud.servicio,
+                nombreRequester: solicitud.nombreRequester
+              }
+              guardarSolicitudInvalida(solicitudInvalida)
+              
               agregarLogReintento(intento, tiempoEspera, `❌ CANAL INVÁLIDO EN REINTENTO: ${validacionReintento.error?.mensaje}`)
               mostrarMensaje(`✅ Solicitud registrada (${solicitud.codigoUnico}), pero ${validacionReintento.error?.mensaje?.toLowerCase()}`, 'advertencia')
               return
@@ -705,18 +780,16 @@ export default function SistemaSolicitudes() {
           }
           
           const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
-          const { tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
+          const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
           
           agregarLogReintento(intento, tiempoEspera, '✅ REINTENTO EXITOSO', tiempoRespuesta)
           
-          // CAMBIO: Actualizar UI solo cuando el reintento es exitoso
           actualizarUI(solicitud)
           mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
           return
           
-        } catch (errorRetry: unknown) {
-          const errorRetryMessage = errorRetry instanceof Error ? errorRetry.message : 'Error desconocido'
-          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetryMessage)
+        } catch (errorRetry: any) {
+          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetry.message)
           intento++
         }
       }
@@ -731,7 +804,7 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const procesarSolicitud = async (): Promise<void> => {
+  const procesarSolicitud = async () => {
     setProcesando(true)
     limpiarMensajes()
     setJsonEnviado('')
@@ -766,9 +839,8 @@ export default function SistemaSolicitudes() {
       
       await enviarMensajes(solicitudRegistrada)
       
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      mostrarMensaje(errorMessage, 'error')
+    } catch (error: any) {
+      mostrarMensaje(error.message, 'error')
     } finally {
       setProcesando(false)
     }
@@ -796,7 +868,7 @@ export default function SistemaSolicitudes() {
     }).join('\n')
   }
 
-  const goBack = (): void => {
+  const goBack = () => {
     window.location.href = '/servineo';
   }
 
@@ -835,7 +907,6 @@ export default function SistemaSolicitudes() {
       )}
 
       <div className="status-section">
-        {/* DETALLE MEJORADO: Solo mostrar Código Único cuando se haya creado la solicitud */}
         {solicitudCreada ? (
           <div className="status-item">
             <div className="status-label">Código Único</div>
@@ -848,7 +919,6 @@ export default function SistemaSolicitudes() {
           </div>
         )}
         
-        {/* DETALLE MEJORADO: Solo mostrar Estado cuando se haya creado la solicitud */}
         {solicitudCreada ? (
           <div className="status-item">
             <div className="status-label">Estado</div>
@@ -861,7 +931,6 @@ export default function SistemaSolicitudes() {
           </div>
         )}
         
-        {/* DETALLE MEJORADO: Solo mostrar Solicitud cuando se haya creado la solicitud */}
         {solicitudCreada ? (
           <div className="status-item">
             <div className="status-label">Solicitud</div>
@@ -876,7 +945,6 @@ export default function SistemaSolicitudes() {
           </div>
         )}
         
-        {/* DETALLE MEJORADO: Solo mostrar Fecha Registro cuando se haya creado la solicitud */}
         {solicitudCreada ? (
           <div className="status-item">
             <div className="status-label">Fecha Registro</div>
@@ -889,7 +957,6 @@ export default function SistemaSolicitudes() {
           </div>
         )}
         
-        {/* DETALLE MEJORADO: Solo mostrar Fecha Estimada cuando se haya creado la solicitud */}
         {solicitudCreada ? (
           <div className="status-item">
             <div className="status-label">Fecha Estimada</div>
@@ -906,6 +973,52 @@ export default function SistemaSolicitudes() {
       {mensajeSistema && (
         <div className={`system-message message-${tipoMensaje}`}>
           {mensajeSistema}
+        </div>
+      )}
+
+      {/* SECCIÓN DE SOLICITUDES INVÁLIDAS */}
+      {solicitudesInvalidas.length > 0 && (
+        <div className="glass-card" style={{border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', marginTop: '2rem'}}>
+          <h2 className="card-title" style={{color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px'}}>
+            <FaTimesCircle className="h-6 w-6" />
+            Solicitudes Inválidas
+          </h2>
+          <p style={{color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem'}}>
+            Las siguientes solicitudes no pudieron ser enviadas debido a problemas con el canal de comunicación:
+          </p>
+          <div style={{overflowX: 'auto'}}>
+            <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '1rem'}}>
+              <thead>
+                <tr style={{backgroundColor: 'rgba(239, 68, 68, 0.1)'}}>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Código</th>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Estado</th>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Fecha Registro</th>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Fecha Estimada</th>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Motivo</th>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Número</th>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Servicio</th>
+                  <th style={{padding: '12px', textAlign: 'left', borderBottom: '1px solid #ef4444', color: '#ef4444'}}>Cliente</th>
+                </tr>
+              </thead>
+              <tbody>
+                {solicitudesInvalidas.map((solicitud, index) => (
+                  <tr key={index} style={{borderBottom: '1px solid rgba(239, 68, 68, 0.3)'}}>
+                    <td style={{padding: '12px', color: '#ef4444', fontWeight: 'bold'}}>{solicitud.codigoUnico}</td>
+                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.estado}</td>
+                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.fechaRegistro}</td>
+                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.fechaEstimada}</td>
+                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.motivo}</td>
+                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.numero}</td>
+                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.servicio}</td>
+                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.nombreRequester}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{marginTop: '1rem', fontSize: '0.9rem', color: '#ef4444', textAlign: 'center'}}>
+            Mostrando {solicitudesInvalidas.length} solicitud(es) inválida(s)
+          </div>
         </div>
       )}
 
