@@ -175,7 +175,7 @@ export default function Page() {
       setShowRequester(false);
       setShowTelefono(false);
     }else{
-      alert(Fallo: ${result.message});
+      alert(`Fallo: ${result.message}`);
     }
   };
 
@@ -311,5 +311,3 @@ export default function Page() {
     </main>
   );
 }
-
-
