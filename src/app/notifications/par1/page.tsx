@@ -1,4 +1,4 @@
-// app/page.tsx - VERSION CON SOLICITUDES INVÁLIDAS
+// app/page.tsx - VERSION CORREGIDA
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -110,6 +110,7 @@ export default function SistemaSolicitudes() {
   const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: any} | null>(null)
   const [solicitudCreada, setSolicitudCreada] = useState(false)
   const [solicitudesInvalidas, setSolicitudesInvalidas] = useState<SolicitudInvalida[]>([])
+  const [mostrarSolicitudesInvalidas, setMostrarSolicitudesInvalidas] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
     region: '591',
@@ -130,8 +131,8 @@ export default function SistemaSolicitudes() {
 
   useEffect(() => {
     inicializarAlmacenamiento()
-    cargarSolicitudesInvalidas()
-    limpiarMensajes() // ← Limpiar mensajes al cargar el componente
+    // NO cargar solicitudes inválidas automáticamente al iniciar
+    // Solo cargarlas cuando realmente se necesiten mostrar
   }, [])
 
   const inicializarAlmacenamiento = () => {
@@ -171,6 +172,7 @@ export default function SistemaSolicitudes() {
       
       localStorage.setItem(SOLICITUDES_INVALIDAS_KEY, JSON.stringify(solicitudesExistentes))
       setSolicitudesInvalidas(solicitudesExistentes)
+      setMostrarSolicitudesInvalidas(true) // MOSTRAR SOLO CUANDO SE GUARDA UNA NUEVA SOLICITUD INVÁLIDA
     } catch (error) {
       console.error('Error al guardar solicitud inválida:', error)
     }
@@ -425,25 +427,10 @@ export default function SistemaSolicitudes() {
     setMensajeSistema(mensaje)
     setTipoMensaje(tipo)
     
-    // Para mensajes de éxito y advertencia, establecer un tiempo de auto-limpieza
-    if (tiempoVisible === 0) {
-      // Si no se especifica tiempo, usar valores por defecto según el tipo
-      if (tipo === 'success') {
-        tiempoVisible = 5000 // 5 segundos para éxito
-      } else if (tipo === 'advertencia') {
-        tiempoVisible = 6000 // 6 segundos para advertencias
-      } else {
-        tiempoVisible = 0 // Los errores permanecen hasta acción del usuario
-      }
-    }
-    
     if (tiempoVisible > 0) {
       setTimeout(() => {
-        // Solo limpiar si el mensaje actual es el mismo que estamos mostrando
-        if (mensajeSistema === mensaje) {
-          setMensajeSistema('')
-          setTipoMensaje('')
-        }
+        setMensajeSistema('')
+        setTipoMensaje('')
       }, tiempoVisible)
     }
   }
@@ -452,6 +439,20 @@ export default function SistemaSolicitudes() {
     setMensajeSistema('')
     setTipoMensaje('')
     setDuplicadoDetectado(null)
+  }
+
+  const limpiarEstadoSolicitud = () => {
+    setCodigoUnico('-')
+    setEstadoSolicitud('-')
+    setEstadoSolicitudPendiente('')
+    setFechaRegistro('-')
+    setFechaEstimada('-')
+    setSolicitudCreada(false)
+    setDuplicadoDetectado(null)
+    setJsonEnviado('')
+    setRespuestaServidor('')
+    setLogsReintentos([])
+    setMostrarSolicitudesInvalidas(false) // Ocultar solicitudes inválidas al limpiar
   }
 
   const calcularSimilitud = (str1: string, str2: string): number => {
@@ -822,11 +823,8 @@ export default function SistemaSolicitudes() {
 
   const procesarSolicitud = async () => {
     setProcesando(true)
-    limpiarMensajes() // ← Esto limpia los mensajes anteriores
-    setJsonEnviado('')
-    setRespuestaServidor('')
-    setLogsReintentos([])
-    setSolicitudCreada(false) // ← También resetear el estado de solicitud creada
+    limpiarMensajes()
+    limpiarEstadoSolicitud()
 
     try {
       if (!validarDatos()) {
@@ -993,8 +991,8 @@ export default function SistemaSolicitudes() {
         </div>
       )}
 
-      {/* SECCIÓN DE SOLICITUDES INVÁLIDAS */}
-      {solicitudesInvalidas.length > 0 && (
+      {/* SECCIÓN DE SOLICITUDES INVÁLIDAS - SOLO SE MUESTRA CUANDO mostrarSolicitudesInvalidas ES true */}
+      {mostrarSolicitudesInvalidas && (
         <div className="glass-card" style={{border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', marginTop: '2rem'}}>
           <h2 className="card-title" style={{color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px'}}>
             <FaTimesCircle className="h-6 w-6" />
