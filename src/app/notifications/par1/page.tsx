@@ -885,19 +885,23 @@ export default function SistemaSolicitudes() {
     }).join('\n')
   }
 
-  return (
-    <div className="container">
-      {/* Botón VOLVER - Cambiado a Link para navegación suave sin deformaciones */}
-      <Link
-        href="/servineo"
-        className="inline-flex items-center gap-2 px-4 py-2 bg-[#2B31E0] text-white rounded-lg hover:bg-[#2B6AE0] transition duration-300 font-medium mb-6 no-underline"
-        prefetch={false}
-      >
-        <FaArrowLeft className="h-4 w-4" />
-        <span>Volver</span>
-      </Link>
+  const goBack = () => {
+    window.location.href = '/servineo';
+  }
 
-      <div className="header">
+  return (
+    <div className="container" style={{position: 'relative'}}>
+      {/* Botón VOLVER - Posicionado absolutamente para evitar deformaciones */}
+      <button
+        onClick={goBack}
+        className="absolute top-6 left-6 p-3 bg-[#2B3FE0] text-[#2BD0F0] rounded-xl hover:bg-[#1AA7ED] hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 z-10"
+        title="Atrás"
+      >
+        <FaArrowLeft className="h-6 w-6" />
+        <span className="font-semibold text-lg">Atrás</span>
+      </button>
+
+      <div className="header" style={{marginTop: '80px'}}>
         <h1 className="main-title">Sistema de Solicitudes</h1>
         <p className="subtitle">Gestiona solicitudes y comunica con los Fixers fácilmente</p>
       </div>
