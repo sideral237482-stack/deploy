@@ -109,7 +109,7 @@ export default function SistemaSolicitudes() {
   const [logsReintentos, setLogsReintentos] = useState<LogReintento[]>([])
   const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: any} | null>(null)
   const [solicitudCreada, setSolicitudCreada] = useState(false)
-  const [solicitudesInvalidas, setSolicitudesInvalidas] = useState<SolicitudInvalida[]>([])
+  const [ultimaSolicitudInvalida, setUltimaSolicitudInvalida] = useState<SolicitudInvalida | null>(null) // CAMBIO: Solo la última
   const [mostrarSolicitudesInvalidas, setMostrarSolicitudesInvalidas] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
@@ -136,6 +136,8 @@ export default function SistemaSolicitudes() {
   }, [])
 
   const inicializarAlmacenamiento = () => {
+    if (typeof window === 'undefined') return;
+    
     if (!localStorage.getItem(SOLICITUDES_KEY)) {
       localStorage.setItem(SOLICITUDES_KEY, JSON.stringify([]))
     }
@@ -150,18 +152,26 @@ export default function SistemaSolicitudes() {
     }
   }
 
-  const cargarSolicitudesInvalidas = () => {
+  const cargarUltimaSolicitudInvalida = () => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const solicitudesInvalidasStorage = localStorage.getItem(SOLICITUDES_INVALIDAS_KEY)
       if (solicitudesInvalidasStorage) {
-        setSolicitudesInvalidas(JSON.parse(solicitudesInvalidasStorage))
+        const solicitudes = JSON.parse(solicitudesInvalidasStorage)
+        // OBTENER SOLO LA ÚLTIMA SOLICITUD
+        if (solicitudes.length > 0) {
+          setUltimaSolicitudInvalida(solicitudes[solicitudes.length - 1])
+        }
       }
     } catch (error) {
-      console.error('Error al cargar solicitudes inválidas:', error)
+      console.error('Error al cargar última solicitud inválida:', error)
     }
   }
 
   const guardarSolicitudInvalida = (solicitud: SolicitudInvalida) => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const solicitudesExistentes: SolicitudInvalida[] = JSON.parse(localStorage.getItem(SOLICITUDES_INVALIDAS_KEY) || '[]')
       solicitudesExistentes.push(solicitud)
@@ -171,9 +181,8 @@ export default function SistemaSolicitudes() {
       }
       
       localStorage.setItem(SOLICITUDES_INVALIDAS_KEY, JSON.stringify(solicitudesExistentes))
-      
-      // SOLO MOSTRAR LA SOLICITUD ACTUAL, NO TODAS
-      setSolicitudesInvalidas([solicitud])
+      // GUARDAR SOLO LA ÚLTIMA SOLICITUD EN EL ESTADO
+      setUltimaSolicitudInvalida(solicitud)
       setMostrarSolicitudesInvalidas(true)
     } catch (error) {
       console.error('Error al guardar solicitud inválida:', error)
@@ -181,6 +190,8 @@ export default function SistemaSolicitudes() {
   }
 
   const guardarLogVerificacion = (log: LogVerificacion) => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const logsExistentes: LogVerificacion[] = JSON.parse(localStorage.getItem(LOGS_VERIFICACION_KEY) || '[]')
       logsExistentes.push(log)
@@ -196,6 +207,10 @@ export default function SistemaSolicitudes() {
   }
 
   const verificarDuplicadoFixerServicio = (nombreFixer: string, servicio: string): {encontrado: boolean, codigo: string, solicitud: Solicitud | null} => {
+    if (typeof window === 'undefined') {
+      return { encontrado: false, codigo: '', solicitud: null }
+    }
+
     if (!nombreFixer || nombreFixer.trim() === '') {
       return { encontrado: false, codigo: '', solicitud: null }
     }
@@ -455,7 +470,7 @@ export default function SistemaSolicitudes() {
     setRespuestaServidor('')
     setLogsReintentos([])
     setMostrarSolicitudesInvalidas(false)
-    setSolicitudesInvalidas([]) // ← LIMPIAR LAS SOLICITUDES INVALIDAS MOSTRADAS
+    setUltimaSolicitudInvalida(null) // Limpiar también la última solicitud inválida
   }
 
   const calcularSimilitud = (str1: string, str2: string): number => {
@@ -495,6 +510,8 @@ export default function SistemaSolicitudes() {
   };
 
   const verificarDuplicados = (solicitud: Solicitud): Solicitud | null => {
+    if (typeof window === 'undefined') return null;
+    
     const ultimas24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const solicitudesRecientes = JSON.parse(localStorage.getItem(ULTIMAS_SOLICITUDES_KEY) || '[]')
     
@@ -553,6 +570,8 @@ export default function SistemaSolicitudes() {
   }
 
   const registrarSolicitud = async (solicitud: Solicitud): Promise<Solicitud> => {
+    if (typeof window === 'undefined') return solicitud;
+    
     const solicitudesExistentes: Solicitud[] = JSON.parse(localStorage.getItem(SOLICITUDES_KEY) || '[]')
     const codigoExiste = solicitudesExistentes.some(s => s.codigoUnico === solicitud.codigoUnico)
     
@@ -994,15 +1013,15 @@ export default function SistemaSolicitudes() {
         </div>
       )}
 
-      {/* SECCIÓN DE SOLICITUDES INVÁLIDAS - SOLO SE MUESTRA CUANDO mostrarSolicitudesInvalidas ES true */}
-      {mostrarSolicitudesInvalidas && (
+      {/* SECCIÓN DE ÚLTIMA SOLICITUD INVÁLIDA - SOLO SE MUESTRA CUANDO mostrarSolicitudesInvalidas ES true */}
+      {mostrarSolicitudesInvalidas && ultimaSolicitudInvalida && (
         <div className="glass-card" style={{border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', marginTop: '2rem'}}>
           <h2 className="card-title" style={{color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px'}}>
             <FaTimesCircle className="h-6 w-6" />
-            Solicitud Registrada con Problemas de Envío
+            Última Solicitud Inválida
           </h2>
           <p style={{color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem'}}>
-            La solicitud fue registrada correctamente pero no se pudo enviar la confirmación por WhatsApp:
+            La siguiente solicitud no pudo ser enviada debido a problemas con el canal de comunicación:
           </p>
           <div style={{overflowX: 'auto'}}>
             <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '1rem'}}>
@@ -1019,25 +1038,21 @@ export default function SistemaSolicitudes() {
                 </tr>
               </thead>
               <tbody>
-                {solicitudesInvalidas.map((solicitud, index) => (
-                  <tr key={index} style={{borderBottom: '1px solid rgba(239, 68, 68, 0.3)'}}>
-                    <td style={{padding: '12px', color: '#ef4444', fontWeight: 'bold'}}>{solicitud.codigoUnico}</td>
-                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.estado}</td>
-                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.fechaRegistro}</td>
-                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.fechaEstimada}</td>
-                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.motivo}</td>
-                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.numero}</td>
-                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.servicio}</td>
-                    <td style={{padding: '12px', color: '#ef4444'}}>{solicitud.nombreRequester}</td>
-                  </tr>
-                ))}
+                <tr style={{borderBottom: '1px solid rgba(239, 68, 68, 0.3)'}}>
+                  <td style={{padding: '12px', color: '#ef4444', fontWeight: 'bold'}}>{ultimaSolicitudInvalida.codigoUnico}</td>
+                  <td style={{padding: '12px', color: '#ef4444'}}>{ultimaSolicitudInvalida.estado}</td>
+                  <td style={{padding: '12px', color: '#ef4444'}}>{ultimaSolicitudInvalida.fechaRegistro}</td>
+                  <td style={{padding: '12px', color: '#ef4444'}}>{ultimaSolicitudInvalida.fechaEstimada}</td>
+                  <td style={{padding: '12px', color: '#ef4444'}}>{ultimaSolicitudInvalida.motivo}</td>
+                  <td style={{padding: '12px', color: '#ef4444'}}>{ultimaSolicitudInvalida.numero}</td>
+                  <td style={{padding: '12px', color: '#ef4444'}}>{ultimaSolicitudInvalida.servicio}</td>
+                  <td style={{padding: '12px', color: '#ef4444'}}>{ultimaSolicitudInvalida.nombreRequester}</td>
+                </tr>
               </tbody>
             </table>
           </div>
           <div style={{marginTop: '1rem', fontSize: '0.9rem', color: '#ef4444', textAlign: 'center'}}>
-            {solicitudesInvalidas.length === 1 
-              ? "Esta solicitud no pudo ser enviada por WhatsApp"
-              : `Mostrando ${solicitudesInvalidas.length} solicitud(es) con problemas de envío`}
+            Mostrando 1 solicitud inválida
           </div>
         </div>
       )}
