@@ -1,4 +1,4 @@
-// app/page.tsx - VERSION CON SOLICITUDES INVÁLIDAS
+// app/page.tsx - VERSION CORREGIDA
 "use client"
 
 import { useState, useEffect } from 'react'
@@ -110,6 +110,7 @@ export default function SistemaSolicitudes() {
   const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: any} | null>(null)
   const [solicitudCreada, setSolicitudCreada] = useState(false)
   const [solicitudesInvalidas, setSolicitudesInvalidas] = useState<SolicitudInvalida[]>([])
+  const [mostrarSolicitudesInvalidas, setMostrarSolicitudesInvalidas] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
     region: '591',
@@ -130,8 +131,8 @@ export default function SistemaSolicitudes() {
 
   useEffect(() => {
     inicializarAlmacenamiento()
-    cargarSolicitudesInvalidas()
-    limpiarMensajes() // ← Limpiar mensajes al cargar el componente
+    // NO cargar solicitudes inválidas automáticamente al iniciar
+    // Solo cargarlas cuando realmente se necesiten mostrar
   }, [])
 
   const inicializarAlmacenamiento = () => {
@@ -170,7 +171,10 @@ export default function SistemaSolicitudes() {
       }
       
       localStorage.setItem(SOLICITUDES_INVALIDAS_KEY, JSON.stringify(solicitudesExistentes))
-      setSolicitudesInvalidas(solicitudesExistentes)
+      
+      // SOLO MOSTRAR LA SOLICITUD ACTUAL, NO TODAS
+      setSolicitudesInvalidas([solicitud])
+      setMostrarSolicitudesInvalidas(true)
     } catch (error) {
       console.error('Error al guardar solicitud inválida:', error)
     }
@@ -251,7 +255,7 @@ export default function SistemaSolicitudes() {
   }
 
   const calcularFechaEstimadaRespuesta = (fechaRegistro: Date, trabajaSabado: boolean = false): string => {
-    const fecha = new Date(fechaRegistro)
+    let fecha = new Date(fechaRegistro)
     let diasHabiles = 0
     
     while (diasHabiles < 2) {
@@ -425,25 +429,10 @@ export default function SistemaSolicitudes() {
     setMensajeSistema(mensaje)
     setTipoMensaje(tipo)
     
-    // Para mensajes de éxito y advertencia, establecer un tiempo de auto-limpieza
-    if (tiempoVisible === 0) {
-      // Si no se especifica tiempo, usar valores por defecto según el tipo
-      if (tipo === 'success') {
-        tiempoVisible = 5000 // 5 segundos para éxito
-      } else if (tipo === 'advertencia') {
-        tiempoVisible = 6000 // 6 segundos para advertencias
-      } else {
-        tiempoVisible = 0 // Los errores permanecen hasta acción del usuario
-      }
-    }
-    
     if (tiempoVisible > 0) {
       setTimeout(() => {
-        // Solo limpiar si el mensaje actual es el mismo que estamos mostrando
-        if (mensajeSistema === mensaje) {
-          setMensajeSistema('')
-          setTipoMensaje('')
-        }
+        setMensajeSistema('')
+        setTipoMensaje('')
       }, tiempoVisible)
     }
   }
@@ -452,6 +441,21 @@ export default function SistemaSolicitudes() {
     setMensajeSistema('')
     setTipoMensaje('')
     setDuplicadoDetectado(null)
+  }
+
+  const limpiarEstadoSolicitud = () => {
+    setCodigoUnico('-')
+    setEstadoSolicitud('-')
+    setEstadoSolicitudPendiente('')
+    setFechaRegistro('-')
+    setFechaEstimada('-')
+    setSolicitudCreada(false)
+    setDuplicadoDetectado(null)
+    setJsonEnviado('')
+    setRespuestaServidor('')
+    setLogsReintentos([])
+    setMostrarSolicitudesInvalidas(false)
+    setSolicitudesInvalidas([]) // ← LIMPIAR LAS SOLICITUDES INVALIDAS MOSTRADAS
   }
 
   const calcularSimilitud = (str1: string, str2: string): number => {
@@ -467,7 +471,7 @@ export default function SistemaSolicitudes() {
     const s1Len = s1.length;
     const s2Len = s2.length;
 
-    const matrix: number[][] = [];
+    let matrix: number[][] = [];
 
     for (let i = 0; i <= s1Len; i++) {
       matrix[i] = [i];
@@ -661,10 +665,9 @@ export default function SistemaSolicitudes() {
       }
 
       return { respuesta, tiempoRespuesta }
-    } catch (err: unknown) {
+    } catch (err: any) {
       const tiempoRespuesta = Date.now() - inicio
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido al enviar mensaje'
-      throw new Error(`Error al enviar: ${errorMessage} (Tiempo: ${tiempoRespuesta}ms)`)
+      throw new Error(`Error al enviar: ${err.message} (Tiempo: ${tiempoRespuesta}ms)`)
     }
   }
 
@@ -718,7 +721,7 @@ export default function SistemaSolicitudes() {
       const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
       
       agregarLogReintento(1, 0, 'Iniciando envío...')
-      const { tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
+      const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico)
       
       agregarLogReintento(1, 0, '✅ ENVÍO EXITOSO', tiempoRespuesta)
       
@@ -729,14 +732,12 @@ export default function SistemaSolicitudes() {
       mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
       return
       
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido'
-      
-      if (errorMessage.includes('Validación fallida:')) {
-        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${errorMessage}`)
+    } catch (error: any) {
+      if (error.message.includes('Validación fallida:')) {
+        agregarLogReintento(1, 0, `❌ ERROR VALIDACIÓN: ${error.message}`)
       }
-      else if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
-        const deteccionError = detectarErrorCanalDesdeRespuesta(errorMessage)
+      else if (error.message.includes('400') || error.message.includes('Bad Request')) {
+        const deteccionError = detectarErrorCanalDesdeRespuesta(error.message)
         
         agregarLogReintento(1, 0, `❌ ERROR 400: ${deteccionError.mensaje}`)
         
@@ -760,7 +761,7 @@ export default function SistemaSolicitudes() {
         
         agregarLogReintento(1, 0, `⚠️ Error 400 pero se reintentará`)
       } else {
-        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, errorMessage)
+        agregarLogReintento(1, 0, '❌ FALLÓ', undefined, error.message)
       }
       
       let intento = 2
@@ -799,7 +800,7 @@ export default function SistemaSolicitudes() {
           }
           
           const mensajeConfirmacion = generarMensajeConfirmacion(solicitud)
-          const { tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
+          const { respuesta, tiempoRespuesta } = await enviarMensajeAPI(mensajeConfirmacion, solicitud.codigoUnico + '-reintento-' + (intento - 1))
           
           agregarLogReintento(intento, tiempoEspera, '✅ REINTENTO EXITOSO', tiempoRespuesta)
           
@@ -807,30 +808,26 @@ export default function SistemaSolicitudes() {
           mostrarMensaje('✅ Solicitud registrada y mensaje enviado exitosamente!', 'success')
           return
           
-        } catch (errorRetry: unknown) {
-          const errorRetryMessage = errorRetry instanceof Error ? errorRetry.message : 'Error desconocido en reintento'
-          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetryMessage)
+        } catch (errorRetry: any) {
+          agregarLogReintento(intento, tiempoEspera, `❌ REINTENTO FALLIDO`, undefined, errorRetry.message)
           intento++
         }
       }
       
       const tiempoTotal = Date.now() - inicioEnvio
-      const mensajeErrorFinal = `Solicitud creada (Código ${solicitud.codigoUnico}), pero no pudimos enviar la confirmación después de 3 reintentos. Tiempo total: ${tiempoTotal}ms. Intenta revisar el estado en la app.`
+      const mensajeError = `Solicitud creada (Código ${solicitud.codigoUnico}), pero no pudimos enviar la confirmación después de 3 reintentos. Tiempo total: ${tiempoTotal}ms. Intenta revisar el estado en la app.`
       
-      agregarLogReintento(0, tiempoTotal, `💥 TODOS LOS REINTENTOS FALLARON`, undefined, mensajeErrorFinal)
+      agregarLogReintento(0, tiempoTotal, `💥 TODOS LOS REINTENTOS FALLARON`, undefined, mensajeError)
       
-      mostrarMensaje(mensajeErrorFinal, 'advertencia')
-      throw new Error(mensajeErrorFinal)
+      mostrarMensaje(mensajeError, 'advertencia')
+      throw new Error(mensajeError)
     }
   }
 
   const procesarSolicitud = async () => {
     setProcesando(true)
-    limpiarMensajes() // ← Esto limpia los mensajes anteriores
-    setJsonEnviado('')
-    setRespuestaServidor('')
-    setLogsReintentos([])
-    setSolicitudCreada(false) // ← También resetear el estado de solicitud creada
+    limpiarMensajes()
+    limpiarEstadoSolicitud()
 
     try {
       if (!validarDatos()) {
@@ -860,9 +857,8 @@ export default function SistemaSolicitudes() {
       
       await enviarMensajes(solicitudRegistrada)
       
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al procesar solicitud'
-      mostrarMensaje(errorMessage, 'error')
+    } catch (error: any) {
+      mostrarMensaje(error.message, 'error')
     } finally {
       setProcesando(false)
     }
@@ -998,15 +994,15 @@ export default function SistemaSolicitudes() {
         </div>
       )}
 
-      {/* SECCIÓN DE SOLICITUDES INVÁLIDAS */}
-      {solicitudesInvalidas.length > 0 && (
+      {/* SECCIÓN DE SOLICITUDES INVÁLIDAS - SOLO SE MUESTRA CUANDO mostrarSolicitudesInvalidas ES true */}
+      {mostrarSolicitudesInvalidas && (
         <div className="glass-card" style={{border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', marginTop: '2rem'}}>
           <h2 className="card-title" style={{color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px'}}>
             <FaTimesCircle className="h-6 w-6" />
-            Solicitudes Inválidas
+            Solicitud Registrada con Problemas de Envío
           </h2>
           <p style={{color: '#ef4444', marginBottom: '1rem', fontSize: '0.9rem'}}>
-            Las siguientes solicitudes no pudieron ser enviadas debido a problemas con el canal de comunicación:
+            La solicitud fue registrada correctamente pero no se pudo enviar la confirmación por WhatsApp:
           </p>
           <div style={{overflowX: 'auto'}}>
             <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '1rem'}}>
@@ -1039,7 +1035,9 @@ export default function SistemaSolicitudes() {
             </table>
           </div>
           <div style={{marginTop: '1rem', fontSize: '0.9rem', color: '#ef4444', textAlign: 'center'}}>
-            Mostrando {solicitudesInvalidas.length} solicitud(es) inválida(s)
+            {solicitudesInvalidas.length === 1 
+              ? "Esta solicitud no pudo ser enviada por WhatsApp"
+              : `Mostrando ${solicitudesInvalidas.length} solicitud(es) con problemas de envío`}
           </div>
         </div>
       )}
