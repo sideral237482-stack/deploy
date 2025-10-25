@@ -109,7 +109,7 @@ export default function SistemaSolicitudes() {
   const [logsReintentos, setLogsReintentos] = useState<LogReintento[]>([])
   const [duplicadoDetectado, setDuplicadoDetectado] = useState<{encontrado: boolean, codigo: string, datos: Solicitud | null} | null>(null)
   const [solicitudCreada, setSolicitudCreada] = useState(false)
-  const [ultimaSolicitudInvalida, setUltimaSolicitudInvalida] = useState<SolicitudInvalida | null>(null) // CAMBIO: Solo la última
+  const [ultimaSolicitudInvalida, setUltimaSolicitudInvalida] = useState<SolicitudInvalida | null>(null)
   const [mostrarSolicitudesInvalidas, setMostrarSolicitudesInvalidas] = useState(false)
 
   const [formData, setFormData] = useState<FormData>({
@@ -131,8 +131,6 @@ export default function SistemaSolicitudes() {
 
   useEffect(() => {
     inicializarAlmacenamiento()
-    // NO cargar solicitudes inválidas automáticamente al iniciar
-    // Solo cargarlas cuando realmente se necesiten mostrar
   }, [])
 
   const inicializarAlmacenamiento = () => {
@@ -164,7 +162,6 @@ export default function SistemaSolicitudes() {
       }
       
       localStorage.setItem(SOLICITUDES_INVALIDAS_KEY, JSON.stringify(solicitudesExistentes))
-      // GUARDAR SOLO LA ÚLTIMA SOLICITUD EN EL ESTADO
       setUltimaSolicitudInvalida(solicitud)
       setMostrarSolicitudesInvalidas(true)
     } catch (error) {
@@ -453,7 +450,7 @@ export default function SistemaSolicitudes() {
     setRespuestaServidor('')
     setLogsReintentos([])
     setMostrarSolicitudesInvalidas(false)
-    setUltimaSolicitudInvalida(null) // Limpiar también la última solicitud inválida
+    setUltimaSolicitudInvalida(null)
   }
 
   const calcularSimilitud = (str1: string, str2: string): number => {
@@ -689,7 +686,6 @@ export default function SistemaSolicitudes() {
           agregarLogReintento(1, 0, `⚠️ Número inválido pero se activarán reintentos`)
           throw new Error(`Validación fallida: ${mensajeError}`)
         } else {
-          // GUARDAR SOLICITUD INVÁLIDA
           const solicitudInvalida: SolicitudInvalida = {
             codigoUnico: solicitud.codigoUnico,
             estado: 'solicitud:invalida',
@@ -746,7 +742,6 @@ export default function SistemaSolicitudes() {
         agregarLogReintento(1, 0, `❌ ERROR 400: ${deteccionError.mensaje}`)
         
         if (!deteccionError.requiereReintentos) {
-          // GUARDAR SOLICITUD INVÁLIDA
           const solicitudInvalida: SolicitudInvalida = {
             codigoUnico: solicitud.codigoUnico,
             estado: 'solicitud:invalida',
@@ -784,7 +779,6 @@ export default function SistemaSolicitudes() {
           if (intento === 2) {
             const validacionReintento = validarCanal(solicitud.numero)
             if (!validacionReintento.valido && !validacionReintento.requiereReintentos) {
-              // GUARDAR SOLICITUD INVÁLIDA
               const solicitudInvalida: SolicitudInvalida = {
                 codigoUnico: solicitud.codigoUnico,
                 estado: 'solicitud:invalida',
@@ -900,14 +894,15 @@ export default function SistemaSolicitudes() {
     <div className="container" style={{position: 'relative'}}>
       <button
         onClick={goBack}
-        className="absolute top-6 left-6 p-3 bg-[#2B3FE0] text-[#2BD0F0] rounded-xl hover:bg-[#1AA7ED] hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 z-10"
+        className="absolute top-4 left-4 p-4 bg-[#2B3FE0] text-[#2BD0F0] rounded-xl hover:bg-[#1AA7ED] hover:text-white transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 z-10 min-w-[120px]"
         title="Atrás"
+        style={{minWidth: '120px', whiteSpace: 'nowrap'}}
       >
-        <FaArrowLeft className="h-6 w-6" />
-        <span className="font-semibold text-lg">Atrás</span>
+        <FaArrowLeft className="h-5 w-5 flex-shrink-0" />
+        <span className="font-semibold text-base">Atrás</span>
       </button>
 
-      <div className="header" style={{marginTop: '80px'}}>
+      <div className="header" style={{marginTop: '70px'}}>
         <h1 className="main-title">Sistema de Solicitudes</h1>
         <p className="subtitle">Gestiona solicitudes y comunica con los Fixers fácilmente</p>
       </div>
@@ -1000,7 +995,6 @@ export default function SistemaSolicitudes() {
         </div>
       )}
 
-      {/* SECCIÓN DE ÚLTIMA SOLICITUD INVÁLIDA - SOLO SE MUESTRA CUANDO mostrarSolicitudesInvalidas ES true */}
       {mostrarSolicitudesInvalidas && ultimaSolicitudInvalida && (
         <div className="glass-card" style={{border: '2px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)', marginTop: '2rem'}}>
           <h2 className="card-title" style={{color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px'}}>
